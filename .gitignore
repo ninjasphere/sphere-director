@@ -2,3 +2,5 @@
 **/*.log
 sphere-director
 director
+bin
+.gopath
