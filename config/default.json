@@ -1,0 +1,11 @@
+{
+  "director": {
+    "port": 2224,
+    "username": "go",
+    "password": "forever",
+    "pidfile": "director.pid",
+    "logfile": "director.log",
+    "errfile": "director.log",
+    "paths": ["/opt/ninjablocks", "/opt/ninjablocks/drivers", "$GOPATH/src/github.com/ninjasphere"]
+  }
+}
