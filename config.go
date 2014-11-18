@@ -94,6 +94,14 @@ func (c Config) FindProcesses() {
 								Errfile: file.Name() + ".log",
 							}
 
+							if process.Respawn == 0 {
+								process.Respawn = -1
+							}
+
+							if process.Delay == "" {
+								process.Delay = "2s" // TODO: Back-off and all that jazz.
+							}
+
 							c.Processes[file.Name()] = process
 						}
 
