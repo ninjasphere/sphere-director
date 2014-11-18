@@ -195,7 +195,7 @@ func (p *Process) watch() {
 		fmt.Fprintf(os.Stderr, "%s success = %#v\n", p.Name, s.Success())
 		fmt.Fprintf(os.Stderr, "%s exited = %#v\n", p.Name, s.Exited())
 		p.respawns++
-		if p.respawns > p.Respawn {
+		if p.Respawn == -1 || p.respawns > p.Respawn {
 			p.release("exited")
 			log.Warningf("%s respawn limit reached.\n", p.Name)
 			return
