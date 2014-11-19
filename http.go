@@ -13,8 +13,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 func HttpServer() {
@@ -57,9 +55,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
-
-	spew.Dump(daemon)
-
 	var output []byte
 	var err error
 	switch r.URL.Path[1:] {

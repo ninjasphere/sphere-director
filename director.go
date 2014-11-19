@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/gwoo/greq"
 	"github.com/ninjasphere/go-ninja/logger"
@@ -41,22 +42,27 @@ func init() {
 		Name:    "director",
 		Args:    []string{},
 		Command: "director",
-		Pidfile: config.Pidfile,
-		Logfile: config.Logfile,
-		Errfile: config.Errfile,
+		Pidfile: Pidfile(homeDir + "director.pid"),
+		Logfile: homeDir + "director.log",
+		Errfile: homeDir + "director.log",
 		Respawn: 1,
+	}
+
+	if runtime.GOOS == "linux" {
+		daemon.Path = "/opt/ninjablocks/bin"
 	}
 }
 
 func main() {
+
 	if len(flag.Args()) > 0 {
 		fmt.Printf("%s", Cli())
 		return
 	}
 	if len(flag.Args()) == 0 {
 		RunDaemon()
+		Mqtt()
 		HttpServer()
-		return
 	}
 }
 
@@ -130,7 +136,7 @@ func host() string {
 	if isHttps() == false {
 		scheme = "http"
 	}
-	return fmt.Sprintf("%s://%s:%s@0.0:%d",
+	return fmt.Sprintf("%s://%s:%s@:%d",
 		scheme, config.Username, config.Password, config.Port,
 	)
 }

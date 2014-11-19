@@ -11,19 +11,26 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/davecgh/go-spew/spew"
 	nconfig "github.com/ninjasphere/go-ninja/config"
 )
+
+var homeDir = "./"
+
+func init() {
+	if runtime.GOOS == "linux" {
+		homeDir = "/var/run/director/"
+		os.MkdirAll(homeDir, 0777)
+	}
+}
 
 type Config struct {
 	Port      int
 	Username  string
 	Password  string
 	Daemonize bool
-	Pidfile   Pidfile
-	Logfile   string
-	Errfile   string
 	Paths     []string
 	Processes map[string]*Process
 }
@@ -75,7 +82,7 @@ func (c Config) FindProcesses() {
 						var info packageJson
 						err = json.Unmarshal(infoFile, &info)
 
-						if err != nil {
+						if err != nil || info.Main == "" {
 							log.Warningf("Could not read package.info for module %s : %s", file.Name(), err)
 						} else {
 							//spew.Dump(info)
@@ -89,9 +96,7 @@ func (c Config) FindProcesses() {
 								Respawn: info.Respawn,
 								Delay:   info.Delay,
 								Ping:    info.Ping,
-								Pidfile: Pidfile(file.Name() + ".pid"),
-								Logfile: file.Name() + ".log",
-								Errfile: file.Name() + ".log",
+								Pidfile: Pidfile(homeDir + file.Name() + ".pid"),
 							}
 
 							if process.Respawn == 0 {
@@ -118,9 +123,6 @@ func LoadConfig() (*Config, error) {
 		Port:      nconfig.MustInt("director", "port"),
 		Username:  nconfig.MustString("director", "username"),
 		Password:  nconfig.MustString("director", "password"),
-		Pidfile:   Pidfile(nconfig.MustString("director", "pidfile")),
-		Logfile:   nconfig.MustString("director", "logfile"),
-		Errfile:   nconfig.MustString("director", "errfile"),
 		Paths:     nconfig.MustStringArray("director", "paths"),
 		Processes: make(map[string]*Process),
 	}, nil

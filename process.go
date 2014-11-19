@@ -98,10 +98,16 @@ func (p *Process) start(name string) string {
 		Env: os.Environ(),
 		Files: []*os.File{
 			os.Stdin,
-			NewLog(p.Logfile),
-			NewLog(p.Errfile),
 		},
 	}
+
+	if p.Logfile != "" {
+		proc.Files = append(proc.Files, NewLog(p.Logfile))
+	}
+	if p.Errfile != "" {
+		proc.Files = append(proc.Files, NewLog(p.Errfile))
+	}
+
 	args := append([]string{p.Name}, p.Args...)
 	process, err := os.StartProcess(p.Command, args, proc)
 	if err != nil {
@@ -195,7 +201,7 @@ func (p *Process) watch() {
 		fmt.Fprintf(os.Stderr, "%s success = %#v\n", p.Name, s.Success())
 		fmt.Fprintf(os.Stderr, "%s exited = %#v\n", p.Name, s.Exited())
 		p.respawns++
-		if p.Respawn == -1 || p.respawns > p.Respawn {
+		if p.Respawn != -1 && p.respawns > p.Respawn {
 			p.release("exited")
 			log.Warningf("%s respawn limit reached.\n", p.Name)
 			return
