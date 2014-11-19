@@ -10,9 +10,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/gwoo/greq"
+	"github.com/mitchellh/osext"
 	"github.com/ninjasphere/go-ninja/logger"
 )
 
@@ -38,18 +38,26 @@ func init() {
 	flag.Usage = Usage
 	flag.Parse()
 	setConfig()
+
+	// Make sure we use the same binary for the daemon
+	currentBinary, err := osext.Executable()
+	log.Infof("Binary: %s", currentBinary)
+	if err != nil {
+		currentBinary = "/opt/ninjablocks/bin/director"
+		log.Infof("Couldn't get current binary. ? Setting to '%s'. error: %s", currentBinary, err)
+	}
+
 	daemon = &Process{
-		Name:    "director",
+		ID: "director",
+		Info: packageJson{
+			Name:        "Sphere Director",
+			Description: "Manages the processes that make up Ninja Sphere.",
+		},
 		Args:    []string{},
-		Command: "director",
+		Command: currentBinary,
 		Pidfile: Pidfile(homeDir + "director.pid"),
 		Logfile: homeDir + "director.log",
 		Errfile: homeDir + "director.log",
-		Respawn: 1,
-	}
-
-	if runtime.GOOS == "linux" {
-		daemon.Path = "/opt/ninjablocks/bin"
 	}
 }
 
@@ -78,7 +86,7 @@ func Cli() string {
 	if name == "" {
 		if sub == "start" {
 			daemon.Args = append(daemon.Args, os.Args[2:]...)
-			return daemon.start(daemon.Name)
+			return daemon.start()
 		}
 		_, _, err = daemon.find()
 		if err != nil {

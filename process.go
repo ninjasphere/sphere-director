@@ -17,17 +17,19 @@ import (
 	"time"
 )
 
-var ping = "1m"
+var defaultPingTime = "1m"
 
 //Run the process
-func RunProcess(name string, p *Process) chan *Process {
+func RunProcess(p *Process) chan *Process {
 	ch := make(chan *Process)
 	go func() {
-		p.start(name)
-		p.ping(ping, func(time time.Duration, p *Process) {
-			if p.Pid > 0 {
-				p.respawns = 0
-				fmt.Printf("%s refreshed after %s.\n", p.Name, time)
+		p.start()
+
+		pid := p.Pid
+		p.ping(func(time time.Duration, p *Process) {
+			if pid == p.Pid {
+				p.Restarts = 0
+				fmt.Printf("%s refreshed after %s.\n", p.ID, time)
 				p.Status = "running"
 			}
 		})
@@ -38,23 +40,30 @@ func RunProcess(name string, p *Process) chan *Process {
 }
 
 type Process struct {
-	Name        string
-	DisplayName string
-	Description string
-	Command     string
-	Args        []string
-	Pidfile     Pidfile
-	Logfile     string
-	Errfile     string
-	Path        string
-	Respawn     int
-	Delay       string
-	Ping        string
+	ID   string // The id used to refer to this process... i.e. director start driver-zigbee
+	Info packageJson
+
+	Path    string // Optional path for the command to be run in (cwd)
+	Command string
+	Args    []string // Optional args
+
+	Pidfile Pidfile
+	Logfile string
+	Errfile string
+
+	PingTime  string // Amount of time to indicate a successful start
+	MaxMemory int    // Maximum memory in kilobytes
+
+	FirstStart  time.Time
+	LastStart   time.Time
+	Restarts    int // Number of restarts since the last successful start, or the beginning
+	TotalStarts int // Number of starts since the beginning
 	Pid         int
 	Status      string
-	x           *os.Process
-	respawns    int
-	children    children
+
+	x *os.Process
+
+	children children
 }
 
 func (p *Process) String() string {
@@ -79,16 +88,15 @@ func (p *Process) find() (*os.Process, string, error) {
 		p.x = process
 		p.Pid = process.Pid
 		p.Status = "running"
-		message := fmt.Sprintf("%s is %#v\n", p.Name, process.Pid)
+		message := fmt.Sprintf("%s is %#v\n", p.ID, process.Pid)
 		return process, message, nil
 	}
-	message := fmt.Sprintf("%s not running.\n", p.Name)
-	return nil, message, errors.New(fmt.Sprintf("Could not find process %s.", p.Name))
+	message := fmt.Sprintf("%s not running.\n", p.ID)
+	return nil, message, errors.New(fmt.Sprintf("Could not find process %s.", p.ID))
 }
 
 //Start the process
-func (p *Process) start(name string) string {
-	p.Name = name
+func (p *Process) start() string {
 	wd := p.Path
 	if wd == "" {
 		wd, _ = os.Getwd()
@@ -108,21 +116,30 @@ func (p *Process) start(name string) string {
 		proc.Files = append(proc.Files, NewLog(p.Errfile))
 	}
 
-	args := append([]string{p.Name}, p.Args...)
+	args := append([]string{p.ID}, p.Args...)
 	process, err := os.StartProcess(p.Command, args, proc)
 	if err != nil {
-		log.Fatalf("%s failed. %s\n", p.Name, err)
+		log.Warningf("%s failed. %s\n", p.ID, err)
+		p.Status = fmt.Sprintf("Failed: %s", err)
 		return ""
 	}
 	err = p.Pidfile.write(process.Pid)
 	if err != nil {
-		log.Warningf("%s pidfile error: %s\n", p.Name, err)
+		log.Warningf("%s pidfile error: %s\n", p.ID, err)
+		p.Status = fmt.Sprintf("Failed to write pid: %s", err)
 		return ""
 	}
 	p.x = process
 	p.Pid = process.Pid
 	p.Status = "started"
-	return fmt.Sprintf("%s is %#v\n", p.Name, process.Pid)
+
+	p.LastStart = time.Now()
+	if p.TotalStarts == 0 {
+		p.FirstStart = time.Now()
+	}
+	p.TotalStarts++
+
+	return fmt.Sprintf("%s is %#v\n", p.ID, process.Pid)
 }
 
 //Stop the process
@@ -137,7 +154,7 @@ func (p *Process) stop() string {
 		p.children.stop("all")
 	}
 	p.release("stopped")
-	message := fmt.Sprintf("%s stopped.\n", p.Name)
+	message := fmt.Sprintf("%s stopped.\n", p.ID)
 	return message
 }
 
@@ -154,19 +171,16 @@ func (p *Process) release(status string) {
 //Restart the process
 func (p *Process) restart() (chan *Process, string) {
 	p.stop()
-	message := fmt.Sprintf("%s restarted.\n", p.Name)
-	ch := RunProcess(p.Name, p)
+	message := fmt.Sprintf("%s restarted.\n", p.ID)
+	ch := RunProcess(p)
 	return ch, message
 }
 
 //Run callback on the process after given duration.
-func (p *Process) ping(duration string, f func(t time.Duration, p *Process)) {
-	if p.Ping != "" {
-		duration = p.Ping
-	}
-	t, err := time.ParseDuration(duration)
+func (p *Process) ping(f func(t time.Duration, p *Process)) {
+	t, err := time.ParseDuration(p.PingTime)
 	if err != nil {
-		t, _ = time.ParseDuration(ping)
+		t, _ = time.ParseDuration(defaultPingTime)
 	}
 	go func() {
 		select {
@@ -197,32 +211,32 @@ func (p *Process) watch() {
 		if p.Status == "stopped" {
 			return
 		}
-		fmt.Fprintf(os.Stderr, "%s %s\n", p.Name, s)
-		fmt.Fprintf(os.Stderr, "%s success = %#v\n", p.Name, s.Success())
-		fmt.Fprintf(os.Stderr, "%s exited = %#v\n", p.Name, s.Exited())
-		p.respawns++
-		if p.Respawn != -1 && p.respawns > p.Respawn {
+		fmt.Fprintf(os.Stderr, "%s %s\n", p.ID, s)
+		fmt.Fprintf(os.Stderr, "%s success = %#v\n", p.ID, s.Success())
+		fmt.Fprintf(os.Stderr, "%s exited = %#v\n", p.ID, s.Exited())
+		/*if p.Respawn != -1 && p.respawns > p.Respawn {
 			p.release("exited")
-			log.Warningf("%s respawn limit reached.\n", p.Name)
+			log.Warningf("%s respawn limit reached.\n", p.ID)
 			return
-		}
-		fmt.Fprintf(os.Stderr, "%s respawns = %#v\n", p.Name, p.respawns)
-		if p.Delay != "" {
+		}*/
+		//fmt.Fprintf(os.Stderr, "%s respawns = %#v\n", p.ID, p.respawns)
+		/*if p.Delay != "" {
 			t, _ := time.ParseDuration(p.Delay)
 			time.Sleep(t)
-		}
+		}*/
 		p.restart()
 		p.Status = "restarted"
+		p.Restarts++
 	case err := <-died:
 		p.release("killed")
-		log.Infof("%d %s killed = %#v", p.x.Pid, p.Name, err)
+		log.Infof("%d %s killed = %#v", p.x.Pid, p.ID, err)
 	}
 }
 
 //Run child processes
 func (p *Process) run() {
-	for name, p := range p.children {
-		RunProcess(name, p)
+	for _, p := range p.children {
+		RunProcess(p)
 	}
 }
 
@@ -248,14 +262,6 @@ func (c children) keys() []string {
 	return keys
 }
 
-//Get child process.
-func (c children) get(key string) *Process {
-	if v, ok := c[key]; ok {
-		return v
-	}
-	return nil
-}
-
 func (c children) stop(name string) {
 	if name == "all" {
 		for name, p := range c {
@@ -264,7 +270,7 @@ func (c children) stop(name string) {
 		}
 		return
 	}
-	p := c.get(name)
+	p := c[name]
 	p.stop()
 	delete(c, name)
 }

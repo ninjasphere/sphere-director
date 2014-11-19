@@ -6,7 +6,6 @@ import (
 )
 
 func Mqtt() {
-	log.Infof("WOOOT")
 
 	conn, err := ninja.Connect("sphere-go-homecloud")
 	if err != nil {
@@ -21,8 +20,8 @@ func Mqtt() {
 	if conn.Subscribe("$node/"+nconfig.Serial()+"/module/start", func(name *string, data map[string]string) bool {
 		log.Infof("Received request to start process %s", *name)
 
-		p := daemon.children.get(*name)
-		if p == nil {
+		p, ok := daemon.children[*name]
+		if !ok {
 			log.Infof("%s does not exist.", *name)
 			return true
 		}
@@ -31,7 +30,7 @@ func Mqtt() {
 			log.Infof("%s already running.", *name)
 			return true
 		}
-		ch := RunProcess(*name, p)
+		ch := RunProcess(p)
 		log.Debugf("%s", <-ch)
 
 		return true
@@ -42,8 +41,8 @@ func Mqtt() {
 	if conn.Subscribe("$node/"+nconfig.Serial()+"/module/stop", func(name *string, data map[string]string) bool {
 		log.Infof("Received request to stop process %s", *name)
 
-		p := daemon.children.get(*name)
-		if p == nil {
+		p, ok := daemon.children[*name]
+		if !ok {
 			log.Infof("%s does not exist.", *name)
 			return true
 		}
@@ -59,8 +58,8 @@ func Mqtt() {
 	if conn.Subscribe("$node/"+nconfig.Serial()+"/module/restart", func(name *string, data map[string]string) bool {
 		log.Infof("Received request to restart process %s", *name)
 
-		p := daemon.children.get(*name)
-		if p == nil {
+		p, ok := daemon.children[*name]
+		if !ok {
 			log.Infof("%s does not exist.", *name)
 			return true
 		}

@@ -36,17 +36,15 @@ type Config struct {
 }
 
 type packageJson struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	Description string `json:"description"`
-	Main        string `json:"main"`
-	Author      string `json:"author"`
-	License     string `json:"license"`
-	MaxMemory   int    `json:"maxMemory"`
-	Respawn     int    `json:"respawn"`
-	Delay       string `json:"delay"`
-	Ping        string `json:"ping"`
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Version     string `json:"version,omitempty"`
+	Description string `json:"description,omitempty"`
+	Main        string `json:"main,omitempty"`
+	Author      string `json:"author,omitempty"`
+	License     string `json:"license,omitempty"`
+	MaxMemory   int    `json:"maxMemory,omitempty"`
+	PingTime    string `json:"ping,omitempty"`
 }
 
 func (c Config) Keys() []string {
@@ -87,24 +85,17 @@ func (c Config) FindProcesses() {
 						} else {
 							//spew.Dump(info)
 							process := &Process{
-								Name:        file.Name(),
-								DisplayName: info.Name,
-								Description: info.Description,
-								Command:     info.Main,
-								//Pidfile:
-								Path:    filepath.Join(path, file.Name()),
-								Respawn: info.Respawn,
-								Delay:   info.Delay,
-								Ping:    info.Ping,
-								Pidfile: Pidfile(homeDir + file.Name() + ".pid"),
+								ID:        file.Name(),
+								Info:      info,
+								MaxMemory: info.MaxMemory,
+								Command:   info.Main,
+								Path:      filepath.Join(path, file.Name()),
+								PingTime:  info.PingTime,
+								Pidfile:   Pidfile(homeDir + file.Name() + ".pid"),
 							}
 
-							if process.Respawn == 0 {
-								process.Respawn = -1
-							}
-
-							if process.Delay == "" {
-								process.Delay = "2s" // TODO: Back-off and all that jazz.
+							if process.PingTime == "" {
+								process.PingTime = "1m"
 							}
 
 							c.Processes[file.Name()] = process
