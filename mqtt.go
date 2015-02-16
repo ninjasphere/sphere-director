@@ -7,7 +7,7 @@ import (
 
 func Mqtt() {
 
-	conn, err := ninja.Connect("sphere-go-homecloud")
+	conn, err := ninja.Connect("sphere-director")
 	if err != nil {
 		log.Errorf("Failed to connect to sphere: %s", err)
 		panic("MQTT Fail!")
@@ -17,7 +17,7 @@ func Mqtt() {
 
 	log.Infof("Subscribing to %s", topic)
 
-	if conn.Subscribe("$node/"+nconfig.Serial()+"/module/start", func(name *string, data map[string]string) bool {
+	if _, err := conn.Subscribe("$node/"+nconfig.Serial()+"/module/start", func(name *string, data map[string]string) bool {
 		log.Infof("Received request to start process %s", *name)
 
 		p, ok := daemon.children[*name]
@@ -34,11 +34,11 @@ func Mqtt() {
 		log.Debugf("%s", <-ch)
 
 		return true
-	}) != nil {
-		log.Fatalf("Failed to subscribe to module topic")
+	}); err != nil {
+		log.Fatalf("Failed to subscribe to module topic: %s", err)
 	}
 
-	if conn.Subscribe("$node/"+nconfig.Serial()+"/module/stop", func(name *string, data map[string]string) bool {
+	if _, err := conn.Subscribe("$node/"+nconfig.Serial()+"/module/stop", func(name *string, data map[string]string) bool {
 		log.Infof("Received request to stop process %s", *name)
 
 		p, ok := daemon.children[*name]
@@ -51,11 +51,11 @@ func Mqtt() {
 		p.stop()
 
 		return true
-	}) != nil {
-		log.Fatalf("Failed to subscribe to module topic")
+	}); err != nil {
+		log.Fatalf("Failed to subscribe to module topic: %s", err)
 	}
 
-	if conn.Subscribe("$node/"+nconfig.Serial()+"/module/restart", func(name *string, data map[string]string) bool {
+	if _, err := conn.Subscribe("$node/"+nconfig.Serial()+"/module/restart", func(name *string, data map[string]string) bool {
 		log.Infof("Received request to restart process %s", *name)
 
 		p, ok := daemon.children[*name]
@@ -69,8 +69,8 @@ func Mqtt() {
 		log.Debugf("%s", <-ch)
 
 		return true
-	}) != nil {
-		log.Fatalf("Failed to subscribe to module topic")
+	}); err != nil {
+		log.Fatalf("Failed to subscribe to module topic: %s", err)
 	}
 
 }
