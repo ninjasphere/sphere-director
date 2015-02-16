@@ -1,0 +1,1 @@
+service sphere-director restart || true
