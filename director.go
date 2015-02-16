@@ -55,7 +55,7 @@ func init() {
 		},
 		Args:    []string{},
 		Command: currentBinary,
-		Pidfile: Pidfile(homeDir + "sphere-director.pid"),
+		Pidfile: Pidfile("/var/run/sphere-director.pid"),
 		Logfile: homeDir + "sphere-director.log",
 		Errfile: homeDir + "sphere-director.log",
 	}
