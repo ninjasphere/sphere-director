@@ -43,21 +43,21 @@ func init() {
 	currentBinary, err := osext.Executable()
 	log.Infof("Binary: %s", currentBinary)
 	if err != nil {
-		currentBinary = "/opt/ninjablocks/bin/director"
+		currentBinary = "/opt/ninjablocks/bin/sphere-director"
 		log.Infof("Couldn't get current binary. ? Setting to '%s'. error: %s", currentBinary, err)
 	}
 
 	daemon = &Process{
-		ID: "director",
+		ID: "sphere-director",
 		Info: packageJson{
 			Name:        "Sphere Director",
 			Description: "Manages the processes that make up Ninja Sphere.",
 		},
 		Args:    []string{},
 		Command: currentBinary,
-		Pidfile: Pidfile(homeDir + "director.pid"),
-		Logfile: homeDir + "director.log",
-		Errfile: homeDir + "director.log",
+		Pidfile: Pidfile(homeDir + "sphere-director.pid"),
+		Logfile: homeDir + "sphere-director.log",
+		Errfile: homeDir + "sphere-director.log",
 	}
 }
 
