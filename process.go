@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -277,13 +278,16 @@ func (c children) stop(name string) {
 
 type Pidfile string
 
+var nums = regexp.MustCompile("[^0-9]+")
+
 //Read the pidfile.
 func (f *Pidfile) read() int {
 	data, err := ioutil.ReadFile(string(*f))
 	if err != nil {
 		return 0
 	}
-	pid, err := strconv.ParseInt(string(data), 0, 32)
+
+	pid, err := strconv.ParseInt(nums.ReplaceAllString(string(data), ""), 0, 32)
 	if err != nil {
 		return 0
 	}
