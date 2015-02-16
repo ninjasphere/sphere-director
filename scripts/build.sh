@@ -2,7 +2,7 @@
 set -ex
 
 OWNER=ninjasphere
-BIN_NAME=director
+BIN_NAME=sphere-director
 PROJECT_NAME=sphere-director
 
 
