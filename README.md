@@ -2,7 +2,7 @@
 
 Ninja Sphere's process manager. Used to start, stop, restart and monitor Sphere processes (like drivers).
 
-Based *heavily* on [goforever](https://github.com/gwoo/goforever) by [Garrett Woodworth]((https://github.com/gwoo)
+Based *heavily* on [goforever](https://github.com/gwoo/goforever) by [Garrett Woodworth](https://github.com/gwoo)
 
 ## Running
 Help.
